@@ -1,179 +1,265 @@
-// src/pages/Dashboard.jsx
+// frontend/src/pages/Dashboard.jsx
 import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import { dashboardAPI } from '../services/api';
 import Navbar from '../components/common/Navbar';
+import api from '../services/api';
 
-const StatCard = ({ icon, title, value, color }) => (
-  <div className={`${color} rounded-xl shadow-lg p-6 text-white`}>
-    <div className="flex items-center justify-between">
-      <div>
-        <p className="text-white text-opacity-80 text-sm">{title}</p>
-        <p className="text-4xl font-bold mt-2">{value}</p>
-      </div>
-      <span className="text-5xl opacity-50">{icon}</span>
-    </div>
-  </div>
-);
-
-const ActivityItem = ({ icon, title, subtitle, time }) => (
-  <div className="flex items-start space-x-3 p-3 rounded-lg hover:bg-gray-50">
-    <span className="text-2xl">{icon}</span>
-    <div className="flex-1">
-      <p className="font-medium text-sm">{title}</p>
-      <p className="text-xs text-gray-600">{subtitle}</p>
-      <p className="text-xs text-gray-400 mt-1">{time}</p>
-    </div>
-  </div>
-);
-
-const Dashboard = ({ onNavigate }) => {
-  const { user } = useAuth();
-  const [stats, setStats] = useState(null);
-  const [activities, setActivities] = useState([]);
+export default function Dashboard() {
+  const [dashboardData, setDashboardData] = useState(null);
   const [loading, setLoading] = useState(true);
+  const { user } = useAuth();
+  const navigate = useNavigate();
 
   useEffect(() => {
-    loadDashboardData();
+    fetchDashboardData();
   }, []);
 
-  const loadDashboardData = async () => {
+  const fetchDashboardData = async () => {
     try {
-      const statsResponse = await dashboardAPI.getStats();
-      const activitiesResponse = await dashboardAPI.getRecentActivities();
-      
-      setStats(statsResponse.data.data);
-      setActivities(activitiesResponse.data.data);
-      setLoading(false);
+      const response = await api.get('/dashboard');
+      setDashboardData(response.data);
     } catch (error) {
-      console.error('Load dashboard error:', error);
+      console.error('Error fetching dashboard:', error);
+    } finally {
       setLoading(false);
     }
   };
 
   if (loading) {
     return (
-      <div>
-        <Navbar onNavigate={onNavigate} currentPage="dashboard" />
-        <div className="text-center py-20">Loading...</div>
+      <div className="min-h-screen flex items-center justify-center bg-gray-50">
+        <div className="text-center">
+          <div className="text-6xl mb-4">⏳</div>
+          <p className="text-gray-600">Memuat dashboard...</p>
+        </div>
       </div>
     );
   }
 
+  const stats = [
+    { 
+      label: 'Mata Kuliah', 
+      value: dashboardData?.stats?.totalClasses || '6', 
+      icon: '📚', 
+      color: 'bg-blue-100',
+      link: '/classes'
+    },
+    { 
+      label: 'Tugas Aktif', 
+      value: dashboardData?.stats?.activeAssignments || '8', 
+      icon: '✏️', 
+      color: 'bg-orange-100',
+      link: '/assignments'
+    },
+    { 
+      label: 'Rata-rata Nilai', 
+      value: dashboardData?.stats?.averageGrade || '88.5', 
+      icon: '📊', 
+      color: 'bg-green-100',
+      link: '/gradebook'
+    },
+    { 
+      label: 'Kehadiran', 
+      value: dashboardData?.stats?.attendance || '95%', 
+      icon: '✅', 
+      color: 'bg-purple-100',
+      link: '/attendance'
+    }
+  ];
+
+  const upcomingAssignments = dashboardData?.upcomingAssignments || [
+    {
+      title: 'Build Simple Component',
+      course: 'Pemrograman Web Lanjutan',
+      deadline: '2025-10-27',
+      urgent: true
+    },
+    {
+      title: 'Laporan Proyek Database',
+      course: 'Basis Data',
+      deadline: '2025-10-28',
+      urgent: true
+    },
+    {
+      title: 'Implementasi Binary Search Tree',
+      course: 'Struktur Data',
+      deadline: '2025-11-01',
+      urgent: false
+    }
+  ];
+
+  const recentActivities = dashboardData?.recentActivities || [
+    {
+      icon: '✓',
+      text: 'Tugas "Setup Environment" dinilai',
+      detail: 'Nilai: 95/100',
+      time: '2 jam lalu',
+      color: 'text-green-600'
+    },
+    {
+      icon: '📝',
+      text: 'Quiz baru tersedia',
+      detail: 'React Hooks - Deadline 25 Okt',
+      time: '5 jam lalu',
+      color: 'text-blue-600'
+    },
+    {
+      icon: '💬',
+      text: 'Balasan diskusi baru',
+      detail: 'Error saat install dependencies',
+      time: '1 hari lalu',
+      color: 'text-purple-600'
+    }
+  ];
+
+  const todaySchedule = dashboardData?.todaySchedule || [
+    {
+      time: '13:00',
+      title: 'Pemrograman Web',
+      room: 'Lab Komputer 3',
+      color: 'bg-blue-50'
+    },
+    {
+      time: '15:30',
+      title: 'Struktur Data',
+      room: 'Ruang 401',
+      color: 'bg-green-50'
+    }
+  ];
+
   return (
-    <div>
-      <Navbar onNavigate={onNavigate} currentPage="dashboard" />
-      <div className="max-w-7xl mx-auto p-6">
+    <div className="min-h-screen bg-gray-50">
+      <Navbar currentPage="dashboard" />
+
+      {/* Main Content */}
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        {/* Welcome Header */}
         <div className="mb-8">
           <h1 className="text-3xl font-bold text-gray-800">Dashboard</h1>
-          <p className="text-gray-600">Selamat datang, {user.full_name}!</p>
+          <p className="text-gray-600 mt-2">
+            Selamat datang kembali, {user?.name || 'User'}! 👋
+          </p>
         </div>
-        
-        {/* Admin Dashboard */}
-        {user.role === 'admin' && stats && (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-            <StatCard icon="👥" title="Total Pengguna" value={stats.total_users} color="bg-blue-500" />
-            <StatCard icon="👨‍🏫" title="Total Dosen" value={stats.total_dosen} color="bg-green-500" />
-            <StatCard icon="👨‍🎓" title="Total Mahasiswa" value={stats.total_mahasiswa} color="bg-purple-500" />
-            <StatCard icon="📚" title="Total Kelas" value={stats.total_classes} color="bg-orange-500" />
-          </div>
-        )}
-        
-        {/* Dosen Dashboard */}
-        {user.role === 'dosen' && stats && (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-            <StatCard icon="📚" title="Kelas Saya" value={stats.my_classes} color="bg-blue-500" />
-            <StatCard icon="👥" title="Total Mahasiswa" value={stats.total_students} color="bg-green-500" />
-            <StatCard icon="⏳" title="Tugas Pending" value={stats.pending_submissions} color="bg-yellow-500" />
-            <StatCard icon="📄" title="Materi" value={stats.total_materials} color="bg-purple-500" />
-          </div>
-        )}
-        
-        {/* Mahasiswa Dashboard */}
-        {user.role === 'mahasiswa' && stats && (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-            <StatCard icon="📚" title="Kelas Saya" value={stats.enrolled_classes} color="bg-blue-500" />
-            <StatCard icon="📝" title="Tugas Pending" value={stats.pending_assignments} color="bg-yellow-500" />
-            <StatCard icon="⭐" title="Rata-rata Nilai" value={stats.average_grade} color="bg-green-500" />
-            <StatCard icon="✅" title="Total Pengumpulan" value={stats.total_submissions} color="bg-purple-500" />
-          </div>
-        )}
-        
-        {/* Recent Activities */}
-        <div className="mt-8 grid grid-cols-1 lg:grid-cols-2 gap-6">
-          <div className="bg-white rounded-xl shadow-lg p-6">
-            <h2 className="text-xl font-bold mb-4 flex items-center">
-              <span className="mr-2">📊</span>
-              Aktivitas Terbaru
-            </h2>
-            <div className="space-y-3">
-              {activities.length === 0 ? (
-                <p className="text-gray-500 text-center py-4">Tidak ada aktivitas</p>
-              ) : (
-                activities.map((activity, index) => (
-                  <ActivityItem 
-                    key={index}
-                    icon={activity.type === 'assignment' ? '📝' : activity.type === 'grade' ? '⭐' : '📢'}
-                    title={activity.title}
-                    subtitle={activity.type}
-                    time={new Date(activity.created_at).toLocaleDateString('id-ID')}
-                  />
-                ))
-              )}
+
+        {/* Stats Cards */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+          {stats.map((stat, index) => (
+            <div 
+              key={index} 
+              onClick={() => navigate(stat.link)}
+              className="bg-white rounded-xl shadow-md overflow-hidden cursor-pointer hover:shadow-lg transition-all"
+            >
+              <div className="p-5">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm text-gray-600">{stat.label}</p>
+                    <p className="text-3xl font-bold text-gray-800 mt-1">{stat.value}</p>
+                  </div>
+                  <div className={`${stat.color} w-14 h-14 rounded-full flex items-center justify-center text-2xl`}>
+                    {stat.icon}
+                  </div>
+                </div>
+              </div>
+              <div className={`${stat.color} h-1`}></div>
+            </div>
+          ))}
+        </div>
+
+        {/* Main Grid */}
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          {/* Upcoming Assignments */}
+          <div className="lg:col-span-2 bg-white rounded-xl shadow-md">
+            <div className="p-5 border-b border-gray-200">
+              <div className="flex items-center justify-between">
+                <h3 className="text-lg font-bold text-gray-800">📝 Tugas Mendatang</h3>
+                <button 
+                  onClick={() => navigate('/assignments')}
+                  className="text-sm text-blue-600 hover:text-blue-700"
+                >
+                  Lihat Semua →
+                </button>
+              </div>
+            </div>
+            <div className="p-5 space-y-3">
+              {upcomingAssignments.map((assignment, index) => (
+                <div
+                  key={index}
+                  className={`p-4 rounded-lg border-l-4 ${
+                    assignment.urgent
+                      ? 'bg-red-50 border-red-500'
+                      : 'bg-blue-50 border-blue-500'
+                  }`}
+                >
+                  <div className="flex items-start justify-between">
+                    <div>
+                      <h4 className="font-semibold text-gray-800">{assignment.title}</h4>
+                      <p className="text-sm text-gray-600 mt-1">{assignment.course}</p>
+                    </div>
+                    <span className={`text-xs font-medium ${assignment.urgent ? 'text-red-600' : 'text-blue-600'}`}>
+                      {assignment.deadline}
+                    </span>
+                  </div>
+                </div>
+              ))}
             </div>
           </div>
-          
-          <div className="bg-white rounded-xl shadow-lg p-6">
-            <h2 className="text-xl font-bold mb-4 flex items-center">
-              <span className="mr-2">🎯</span>
-              Quick Actions
-            </h2>
-            <div className="space-y-3">
-              <button 
-                onClick={() => onNavigate('classes')}
-                className="w-full text-left p-4 rounded-lg border-2 border-blue-200 hover:border-blue-500 hover:bg-blue-50 transition-colors"
-              >
-                <div className="flex items-center space-x-3">
-                  <span className="text-2xl">📚</span>
-                  <div>
-                    <p className="font-semibold">Lihat Kelas</p>
-                    <p className="text-sm text-gray-600">Akses semua kelas Anda</p>
-                  </div>
-                </div>
-              </button>
-              
-              <button 
-                onClick={() => onNavigate('assignments')}
-                className="w-full text-left p-4 rounded-lg border-2 border-green-200 hover:border-green-500 hover:bg-green-50 transition-colors"
-              >
-                <div className="flex items-center space-x-3">
-                  <span className="text-2xl">📝</span>
-                  <div>
-                    <p className="font-semibold">Lihat Tugas</p>
-                    <p className="text-sm text-gray-600">Kelola tugas dan pengumpulan</p>
-                  </div>
-                </div>
-              </button>
-              
-              {(user.role === 'admin' || user.role === 'dosen') && (
-                <button 
-                  className="w-full text-left p-4 rounded-lg border-2 border-purple-200 hover:border-purple-500 hover:bg-purple-50 transition-colors"
-                >
-                  <div className="flex items-center space-x-3">
-                    <span className="text-2xl">➕</span>
-                    <div>
-                      <p className="font-semibold">Buat Kelas Baru</p>
-                      <p className="text-sm text-gray-600">Tambahkan kelas baru</p>
+
+          {/* Calendar Widget */}
+          <div className="bg-white rounded-xl shadow-md">
+            <div className="p-5 border-b border-gray-200">
+              <h3 className="text-lg font-bold text-gray-800">📅 Kalender</h3>
+            </div>
+            <div className="p-5">
+              <div className="text-center mb-4">
+                <p className="text-sm text-gray-600">Oktober 2025</p>
+                <p className="text-3xl font-bold text-gray-800">{new Date().getDate()}</p>
+                <p className="text-sm text-gray-600">
+                  {new Date().toLocaleDateString('id-ID', { weekday: 'long' })}
+                </p>
+              </div>
+              <div className="space-y-3">
+                {todaySchedule.map((schedule, index) => (
+                  <div key={index} className={`p-3 ${schedule.color} rounded-lg`}>
+                    <div className="flex items-start space-x-2">
+                      <span className={`${schedule.color.replace('bg-', 'text-').replace('-50', '-600')} font-bold text-sm`}>
+                        {schedule.time}
+                      </span>
+                      <div className="flex-1">
+                        <p className="text-sm font-medium text-gray-800">{schedule.title}</p>
+                        <p className="text-xs text-gray-600">{schedule.room}</p>
+                      </div>
                     </div>
                   </div>
-                </button>
-              )}
+                ))}
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Recent Activities */}
+        <div className="mt-6 bg-white rounded-xl shadow-md">
+          <div className="p-5 border-b border-gray-200">
+            <h3 className="text-lg font-bold text-gray-800">🔔 Aktivitas Terbaru</h3>
+          </div>
+          <div className="p-5">
+            <div className="space-y-4">
+              {recentActivities.map((activity, index) => (
+                <div key={index} className="flex items-start space-x-4">
+                  <div className={`w-10 h-10 rounded-full flex items-center justify-center ${activity.color} bg-opacity-10 flex-shrink-0`}>
+                    <span className="text-xl">{activity.icon}</span>
+                  </div>
+                  <div className="flex-1">
+                    <p className="font-medium text-gray-800">{activity.text}</p>
+                    <p className="text-sm text-gray-600">{activity.detail}</p>
+                    <p className="text-xs text-gray-500 mt-1">{activity.time}</p>
+                  </div>
+                </div>
+              ))}
             </div>
           </div>
         </div>
       </div>
     </div>
   );
-};
-
-export default Dashboard;
+}

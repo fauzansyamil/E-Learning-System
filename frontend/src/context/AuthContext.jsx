@@ -1,82 +1,131 @@
-// src/context/AuthContext.jsx
+// frontend/src/context/AuthContext.jsx
 import React, { createContext, useState, useContext, useEffect } from 'react';
-import { authAPI } from '../services/api';
 
 const AuthContext = createContext(null);
 
 export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
+  const [token, setToken] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
 
+  // Initialize auth state from localStorage on mount
   useEffect(() => {
-    const token = localStorage.getItem('token');
-    const storedUser = localStorage.getItem('user');
-    
-    if (token && storedUser) {
+    const initializeAuth = () => {
       try {
-        setUser(JSON.parse(storedUser));
+        const storedToken = localStorage.getItem('token');
+        const storedUser = localStorage.getItem('user');
+
+        if (storedToken && storedUser) {
+          setToken(storedToken);
+          setUser(JSON.parse(storedUser));
+          setIsAuthenticated(true);
+        }
       } catch (error) {
-        console.error('Error parsing stored user:', error);
+        console.error('Error initializing auth:', error);
+        // Clear corrupted data
         localStorage.removeItem('token');
         localStorage.removeItem('user');
+      } finally {
+        setLoading(false);
       }
-    }
-    setLoading(false);
+    };
+
+    initializeAuth();
   }, []);
 
-  const login = async (credentials) => {
-    console.log('🔐 AuthContext: login called with:', credentials); // Debug
-    
+  // Login function
+  const login = (authToken, userData) => {
     try {
-      console.log('📡 Sending request to API...'); // Debug
-      const response = await authAPI.login(credentials);
-      
-      console.log('📥 API Response:', response); // Debug
-      
-      const { token, user } = response.data.data;
-      
-      localStorage.setItem('token', token);
-      localStorage.setItem('user', JSON.stringify(user));
-      setUser(user);
-      
-      console.log('✅ Login successful, user set:', user); // Debug
-      
-      return { success: true };
+      // Save to state
+      setToken(authToken);
+      setUser(userData);
+      setIsAuthenticated(true);
+
+      // Save to localStorage
+      localStorage.setItem('token', authToken);
+      localStorage.setItem('user', JSON.stringify(userData));
+
+      return true;
     } catch (error) {
-      console.error('❌ Login error:', error); // Debug
-      console.error('Error response:', error.response); // Debug
-      
-      return { 
-        success: false, 
-        message: error.response?.data?.message || 'Login failed' 
-      };
+      console.error('Error during login:', error);
+      return false;
     }
   };
 
+  // Logout function
   const logout = () => {
-    localStorage.removeItem('token');
-    localStorage.removeItem('user');
-    setUser(null);
+    try {
+      // Clear state
+      setToken(null);
+      setUser(null);
+      setIsAuthenticated(false);
+
+      // Clear localStorage
+      localStorage.removeItem('token');
+      localStorage.removeItem('user');
+
+      return true;
+    } catch (error) {
+      console.error('Error during logout:', error);
+      return false;
+    }
   };
 
+  // Update user profile
+  const updateUser = (updatedUserData) => {
+    try {
+      const newUserData = { ...user, ...updatedUserData };
+      setUser(newUserData);
+      localStorage.setItem('user', JSON.stringify(newUserData));
+      return true;
+    } catch (error) {
+      console.error('Error updating user:', error);
+      return false;
+    }
+  };
+
+  // Check if user has specific role
+  const hasRole = (role) => {
+    return user?.role === role;
+  };
+
+  // Check if user has any of the specified roles
+  const hasAnyRole = (roles) => {
+    return roles.includes(user?.role);
+  };
+
+  // Get user's full name
+  const getUserName = () => {
+    return user?.name || user?.username || 'User';
+  };
+
+  // Context value
   const value = {
     user,
+    token,
     loading,
+    isAuthenticated,
     login,
     logout,
-    isAuthenticated: !!user,
-    isAdmin: user?.role === 'admin',
-    isDosen: user?.role === 'dosen',
-    isMahasiswa: user?.role === 'mahasiswa',
+    updateUser,
+    hasRole,
+    hasAnyRole,
+    getUserName
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 };
 
+// Custom hook to use auth context
 export const useAuth = () => {
   const context = useContext(AuthContext);
+  
   if (!context) {
-    throw new Error('useAuth must be used within AuthProvider');
+    throw new Error('useAuth must be used within an AuthProvider');
   }
+  
   return context;
 };
+
+export default AuthContext;
