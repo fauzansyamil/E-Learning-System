@@ -2,7 +2,7 @@
 const express = require('express');
 const router = express.Router();
 const materialController = require('../controllers/materialController');
-const { authenticateToken, authorizeRoles } = require('../middleware/auth');
+const { authenticateToken, authorizeRoles } = require('../middlewares/auth');
 
 // All routes require authentication
 router.use(authenticateToken);

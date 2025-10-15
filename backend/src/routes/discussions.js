@@ -2,7 +2,7 @@
 const express = require('express');
 const router = express.Router();
 const discussionController = require('../controllers/discussionController.js');
-const { authenticateToken } = require('../middleware/auth');
+const { authenticateToken } = require('../middlewares/auth.js');
 
 // All routes require authentication
 router.use(authenticateToken);
