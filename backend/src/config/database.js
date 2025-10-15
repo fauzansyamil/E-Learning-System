@@ -1,32 +1,31 @@
 // src/config/database.js
-const mysql = require('mysql2');
-require('dotenv').config();
+const mysql = require('mysql2/promise');
 
-// Membuat connection pool untuk efisiensi
+// Create connection pool
 const pool = mysql.createPool({
   host: process.env.DB_HOST || 'localhost',
   user: process.env.DB_USER || 'root',
   password: process.env.DB_PASSWORD || '',
-  database: process.env.DB_NAME || 'elearning_db',
+  database: process.env.DB_NAME || 'lms_database',
+  port: process.env.DB_PORT || 3306,
   waitForConnections: true,
   connectionLimit: 10,
-  queueLimit: 0
+  queueLimit: 0,
+  enableKeepAlive: true,
+  keepAliveInitialDelay: 0
 });
 
-// Menggunakan promise untuk async/await
-const promisePool = pool.promise();
-
-// Test koneksi database
+// Test connection
 const testConnection = async () => {
   try {
-    const connection = await promisePool.getConnection();
-    console.log('✅ Database connected successfully!');
+    const connection = await pool.getConnection();
+    console.log('✅ Database connection pool created');
     connection.release();
+    return true;
   } catch (error) {
     console.error('❌ Database connection failed:', error.message);
-    process.exit(1);
+    return false;
   }
 };
 
-// ⚠️ PASTIKAN BARIS INI ADA!
-module.exports = { pool: promisePool, testConnection };
+module.exports = { pool, testConnection };

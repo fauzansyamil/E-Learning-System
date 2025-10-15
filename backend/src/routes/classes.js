@@ -1,23 +1,63 @@
-// src/routes/classes.js
+// src/routes/classRoutes.js
 const express = require('express');
 const router = express.Router();
 const classController = require('../controllers/classController');
-const { authenticateToken, authorizeRoles } = require('../middleware/auth');
+const { authenticateToken, authorize } = require('../middlewares/auth');
 
-// All routes require authentication
-router.use(authenticateToken);
+// ==================== Class CRUD Routes ====================
 
-// Public routes (all authenticated users)
-router.get('/', classController.getAllClasses);
-router.get('/:id', classController.getClassById);
-router.post('/:classId/enroll', classController.enrollStudent);
-router.get('/:id/students', classController.getClassStudents);
+// CREATE - Create new class (Admin/Dosen only)
+router.post('/', 
+  authenticateToken, 
+  authorize(['admin', 'dosen']), 
+  classController.createClass
+);
 
-// Admin & Dosen only
-router.post('/', authorizeRoles('admin', 'dosen'), classController.createClass);
-router.put('/:id', authorizeRoles('admin', 'dosen'), classController.updateClass);
+// READ - Get all classes (filtered by role)
+router.get('/', 
+  authenticateToken, 
+  classController.getAllClasses
+);
 
-// Admin only
-router.delete('/:id', authorizeRoles('admin'), classController.deleteClass);
+// READ - Get class by ID
+router.get('/:id', 
+  authenticateToken, 
+  classController.getClassById
+);
+
+// READ - Get students in a class
+router.get('/:id/students', 
+  authenticateToken, 
+  classController.getClassStudents
+);
+
+// UPDATE - Update class (Admin/Instructor only)
+router.put('/:id', 
+  authenticateToken, 
+  authorize(['admin', 'dosen']), 
+  classController.updateClass
+);
+
+// DELETE - Delete class (Admin only)
+router.delete('/:id', 
+  authenticateToken, 
+  authorize(['admin']), 
+  classController.deleteClass
+);
+
+// ==================== Enrollment Routes ====================
+
+// Enroll student to class
+router.post('/:classId/enroll', 
+  authenticateToken, 
+  classController.enrollStudent
+);
+
+// Unenroll student from class
+router.delete('/:classId/enroll/:studentId', 
+  authenticateToken, 
+  authorize(['admin', 'dosen']), 
+  classController.unenrollStudent
+);
 
 module.exports = router;

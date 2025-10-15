@@ -1,26 +1,56 @@
-
-// backend/src/routes/grades.js - NEW routes for grades
+// src/routes/gradeRoutes.js
 const express = require('express');
 const router = express.Router();
 const gradeController = require('../controllers/gradeController');
-const { authenticateToken } = require('../middleware/auth');
+const { authenticateToken, authorize } = require('../middlewares/auth');
 
-// All routes require authentication
-router.use(authenticateToken);
+// ==================== Grade Routes ====================
 
-// @route   GET /api/grades
-// @desc    Get all grades for current user with breakdown
-// @access  Private (Student)
-router.get('/', gradeController.getAllGrades);
+// GET - Get grades by class (Dosen/Admin)
+router.get('/class/:classId', 
+  authenticateToken, 
+  authorize(['admin', 'dosen']), 
+  gradeController.getGradesByClass
+);
 
-// @route   GET /api/grades/gpa
-// @desc    Calculate GPA for current user
-// @access  Private (Student)
-router.get('/gpa', gradeController.getGPA);
+// GET - Get specific student grades (Admin/Dosen/Student own grades)
+router.get('/student/:studentId', 
+  authenticateToken, 
+  gradeController.getStudentGrades
+);
 
-// @route   GET /api/grades/course/:courseId
-// @desc    Get grades for specific course
-// @access  Private (Student)
-router.get('/course/:courseId', gradeController.getGradesByCourse);
+// GET - Get my grades (Current student)
+router.get('/my-grades', 
+  authenticateToken, 
+  authorize(['mahasiswa']), 
+  gradeController.getMyGrades
+);
+
+// GET - Get grades by assignment (Dosen/Admin)
+router.get('/assignment/:assignmentId', 
+  authenticateToken, 
+  authorize(['admin', 'dosen']), 
+  gradeController.getGradeByAssignment
+);
+
+// GET - Get grade distribution (for charts)
+router.get('/distribution/:classId', 
+  authenticateToken, 
+  authorize(['admin', 'dosen']), 
+  gradeController.getGradeDistribution
+);
+
+// GET - Get grades for export (CSV data)
+router.get('/export/:classId', 
+  authenticateToken, 
+  authorize(['admin', 'dosen']), 
+  gradeController.getGradesForExport
+);
+
+// GET - Get overall statistics
+router.get('/statistics', 
+  authenticateToken, 
+  gradeController.getOverallStatistics
+);
 
 module.exports = router;

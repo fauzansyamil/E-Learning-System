@@ -1,17 +1,37 @@
-// server.js - Entry point aplikasi
+// server.js - Entry point untuk menjalankan server
 require('dotenv').config();
 const app = require('./src/app');
-const { testConnection } = require('./src/config/database');
+const { pool } = require('./src/config/database');
 
 const PORT = process.env.PORT || 5000;
 
-// Test database connection sebelum start server
-testConnection().then(() => {
-  app.listen(PORT, () => {
-    console.log(`🚀 Server running on http://localhost:${PORT}`);
-    console.log(`📚 API Documentation: http://localhost:${PORT}/api/docs`);
+// Test database connection
+pool.getConnection()
+  .then(connection => {
+    console.log('✅ Database connected successfully');
+    connection.release();
+    
+    // Start server
+    app.listen(PORT, () => {
+      console.log(`🚀 Server is running on port ${PORT}`);
+      console.log(`📍 API URL: http://localhost:${PORT}`);
+      console.log(`📄 API Docs: http://localhost:${PORT}/`);
+      console.log(`\n🎯 Environment: ${process.env.NODE_ENV || 'development'}`);
+    });
+  })
+  .catch(error => {
+    console.error('❌ Database connection failed:', error);
+    process.exit(1);
   });
-}).catch(err => {
-  console.error('Failed to start server:', err);
+
+// Handle unhandled promise rejections
+process.on('unhandledRejection', (err) => {
+  console.error('❌ Unhandled Rejection:', err);
+  process.exit(1);
+});
+
+// Handle uncaught exceptions
+process.on('uncaughtException', (err) => {
+  console.error('❌ Uncaught Exception:', err);
   process.exit(1);
 });
