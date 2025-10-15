@@ -32,15 +32,15 @@ uploadDirs.forEach(dir => {
 });
 
 // ==================== Import Routes ====================
-const authRoutes = require('./routes/authRoutes');
-const userRoutes = require('./routes/userRoutes');
-const classRoutes = require('./routes/classRoutes');
-const materialRoutes = require('./routes/materialRoutes');
-const assignmentRoutes = require('./routes/assignmentRoutes');
-const discussionRoutes = require('./routes/discussionRoutes');
-const notificationRoutes = require('./routes/notificationRoutes');
-const dashboardRoutes = require('./routes/dashboardRoutes');
-const gradeRoutes = require('./routes/gradeRoutes');
+const authRoutes = require('./routes/auth');
+const userRoutes = require('./routes/users');
+const classRoutes = require('./routes/classes');
+const materialRoutes = require('./routes/materials');
+const assignmentRoutes = require('./routes/assignments');
+const discussionRoutes = require('./routes/discussions');
+const notificationRoutes = require('./routes/notifications');
+const dashboardRoutes = require('./routes/dashboard');
+const gradeRoutes = require('./routes/grades');
 
 // ==================== API Routes ====================
 app.use('/api/auth', authRoutes);
@@ -128,6 +128,15 @@ app.get('/', (req, res) => {
       dashboard: {
         'GET /api/dashboard/stats': 'Get dashboard statistics',
         'GET /api/dashboard/recent-activities': 'Get recent activities'
+      },
+      grades: {
+        'GET /api/grades/class/:classId': 'Get grades by class (dosen/admin)',
+        'GET /api/grades/student/:studentId': 'Get student grades',
+        'GET /api/grades/my-grades': 'Get my grades (mahasiswa)',
+        'GET /api/grades/assignment/:assignmentId': 'Get grades by assignment',
+        'GET /api/grades/distribution/:classId': 'Get grade distribution',
+        'GET /api/grades/export/:classId': 'Get grades for export',
+        'GET /api/grades/statistics': 'Get overall statistics'
       }
     }
   });

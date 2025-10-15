@@ -1,10 +1,8 @@
-// src/routes/classRoutes.js
+// src/routes/classes.js
 const express = require('express');
 const router = express.Router();
 const classController = require('../controllers/classController');
 const { authenticateToken, authorize } = require('../middlewares/auth');
-
-// ==================== Class CRUD Routes ====================
 
 // CREATE - Create new class (Admin/Dosen only)
 router.post('/', 
@@ -44,8 +42,6 @@ router.delete('/:id',
   authorize(['admin']), 
   classController.deleteClass
 );
-
-// ==================== Enrollment Routes ====================
 
 // Enroll student to class
 router.post('/:classId/enroll', 
