@@ -2,7 +2,7 @@
 const express = require('express');
 const router = express.Router();
 const materialController = require('../controllers/materialController');
-const { authenticateToken, authorizeRoles } = require('../middlewares/auth');
+const { authenticateToken, authorize } = require('../middlewares/auth');
 
 // All routes require authentication
 router.use(authenticateToken);
@@ -12,8 +12,8 @@ router.get('/class/:classId', materialController.getMaterialsByClass);
 router.get('/:id', materialController.getMaterialById);
 
 // Admin & Dosen only
-router.post('/', authorizeRoles('admin', 'dosen'), materialController.createMaterial);
-router.put('/:id', authorizeRoles('admin', 'dosen'), materialController.updateMaterial);
-router.delete('/:id', authorizeRoles('admin', 'dosen'), materialController.deleteMaterial);
+router.post('/', authorize('admin', 'dosen'), materialController.createMaterial);
+router.put('/:id', authorize('admin', 'dosen'), materialController.updateMaterial);
+router.delete('/:id', authorize('admin', 'dosen'), materialController.deleteMaterial);
 
 module.exports = router;

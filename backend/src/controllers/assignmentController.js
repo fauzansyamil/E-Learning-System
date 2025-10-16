@@ -1,265 +1,49 @@
 // backend/src/controllers/assignmentController.js - FULL COMPLETE VERSION
-const { pool } = require('../config/database');
-const multer = require('multer');
-const path = require('path');
-const fs = require('fs');
+import pool from '../config/database.js';
+import path from 'path';
+import fs from 'fs';
+import multer from 'multer';
 
 // ========================================
 // MULTER CONFIGURATION
 // ========================================
 
 const storage = multer.diskStorage({
-  destination: (req, file, cb) => {
-    const uploadPath = path.join(__dirname, '../../uploads/assignments');
+  destination: function (req, file, cb) {
+    const uploadPath = 'uploads/assignments';
     if (!fs.existsSync(uploadPath)) {
       fs.mkdirSync(uploadPath, { recursive: true });
     }
     cb(null, uploadPath);
   },
-  filename: (req, file, cb) => {
+  filename: function (req, file, cb) {
     const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
-    cb(null, 'assignment-' + uniqueSuffix + path.extname(file.originalname));
+    cb(null, uniqueSuffix + path.extname(file.originalname));
   }
 });
 
-const upload = multer({
-  storage,
-  limits: { fileSize: 10 * 1024 * 1024 }, // 10MB
-  fileFilter: (req, file, cb) => {
-    const allowedTypes = /pdf|doc|docx|zip|rar|jpg|jpeg|png/;
-    const extname = allowedTypes.test(path.extname(file.originalname).toLowerCase());
-    const mimetype = allowedTypes.test(file.mimetype);
-    
-    if (extname && mimetype) {
-      cb(null, true);
-    } else {
-      cb(new Error('Only PDF, DOC, DOCX, ZIP, RAR, and images are allowed'));
-    }
-  }
-}).single('file');
+export const upload = multer({ storage });
 
-// ========================================
-// READ OPERATIONS
-// ========================================
-
-// Get all assignments for current user - Enhanced with filtering
-exports.getAllAssignments = async (req, res) => {
+// ===================
+//  CREATE ASSIGNMENT
+// ===================
+export const createAssignment = async (req, res) => {
   try {
-    const userId = req.user.id;
-    const userRole = req.user.role;
-    const { status, course, semester } = req.query;
+    const { title, description, class_id, deadline } = req.body;
+    const file = req.file ? req.file.filename : null;
+    const lecturer_id = req.user.id;
 
-    let query = '';
-    let params = [userId];
-    let whereConditions = [];
-
-    if (userRole === 'mahasiswa') {
-      query = `
-        SELECT a.*, c.name as course, c.code as courseCode,
-               asub.submitted_at as submittedDate,
-               asub.score,
-               asub.feedback,
-               asub.submitted_at IS NOT NULL as submitted,
-               CASE 
-                 WHEN asub.score IS NOT NULL THEN 'graded'
-                 WHEN asub.submitted_at IS NOT NULL THEN 'submitted'
-                 ELSE 'pending'
-               END as status
-        FROM assignments a
-        JOIN classes c ON a.class_id = c.id
-        JOIN class_enrollments ce ON c.id = ce.class_id
-        LEFT JOIN assignment_submissions asub ON a.id = asub.assignment_id AND asub.user_id = ?
-        WHERE ce.user_id = ?
-      `;
-      params.push(userId);
-
-      // Add filters
-      if (status && status !== 'all') {
-        if (status === 'pending') {
-          whereConditions.push('asub.submitted_at IS NULL');
-        } else if (status === 'submitted') {
-          whereConditions.push('asub.submitted_at IS NOT NULL AND asub.score IS NULL');
-        } else if (status === 'graded') {
-          whereConditions.push('asub.score IS NOT NULL');
-        }
-      }
-
-      if (course && course !== 'all') {
-        whereConditions.push('c.name = ?');
-        params.push(course);
-      }
-
-      if (whereConditions.length > 0) {
-        query += ' AND ' + whereConditions.join(' AND ');
-      }
-
-      query += ' ORDER BY a.deadline ASC';
-
-    } else if (userRole === 'dosen') {
-      query = `
-        SELECT a.*, c.name as course, c.code as courseCode,
-               COUNT(DISTINCT asub.id) as total_submissions,
-               COUNT(DISTINCT CASE WHEN asub.score IS NOT NULL THEN asub.id END) as graded_submissions
-        FROM assignments a
-        JOIN classes c ON a.class_id = c.id
-        LEFT JOIN assignment_submissions asub ON a.id = asub.assignment_id
-        WHERE c.instructor_id = ?
-        GROUP BY a.id
-        ORDER BY a.deadline ASC
-      `;
-      params = [userId];
-    }
-
-    const [assignments] = await pool.query(query, params);
-
-    // Get attachments for each assignment
-    const assignmentIds = assignments.map(a => a.id);
-    let attachments = [];
-    
-    if (assignmentIds.length > 0) {
-      const [attachmentResults] = await pool.query(
-        `SELECT assignment_id, file_name 
-         FROM assignment_attachments 
-         WHERE assignment_id IN (?)`,
-        [assignmentIds]
-      );
-      attachments = attachmentResults;
-    }
-
-    // Map attachments to assignments
-    const assignmentsWithAttachments = assignments.map(a => ({
-      ...a,
-      attachments: attachments
-        .filter(att => att.assignment_id === a.id)
-        .map(att => att.file_name),
-      points: a.max_score,
-      type: a.is_group ? 'group' : 'individual'
-    }));
-
-    res.json({
-      success: true,
-      data: assignmentsWithAttachments
-    });
-
-  } catch (error) {
-    console.error('Get assignments error:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Error fetching assignments',
-      error: error.message
-    });
-  }
-};
-
-// Get assignment by ID
-exports.getAssignmentById = async (req, res) => {
-  try {
-    const { id } = req.params;
-    const userId = req.user.id;
-
-    const [assignments] = await pool.query(
-      `SELECT a.*, c.name as course, c.code as courseCode,
-              asub.submitted_at, asub.score, asub.feedback
-       FROM assignments a
-       JOIN classes c ON a.class_id = c.id
-       LEFT JOIN assignment_submissions asub ON a.id = asub.assignment_id AND asub.user_id = ?
-       WHERE a.id = ?`,
-      [userId, id]
-    );
-
-    if (assignments.length === 0) {
-      return res.status(404).json({
-        success: false,
-        message: 'Assignment not found'
-      });
-    }
-
-    // Get attachments
-    const [attachments] = await pool.query(
-      'SELECT file_name, file_path FROM assignment_attachments WHERE assignment_id = ?',
-      [id]
-    );
-
-    res.json({
-      success: true,
-      data: {
-        ...assignments[0],
-        attachments: attachments.map(a => a.file_name)
-      }
-    });
-
-  } catch (error) {
-    console.error('Get assignment error:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Error fetching assignment',
-      error: error.message
-    });
-  }
-};
-
-// ========================================
-// CREATE OPERATIONS
-// ========================================
-
-// Create new assignment (Lecturer/Admin only)
-exports.createAssignment = async (req, res) => {
-  try {
-    const {
-      classId,
-      title,
-      description,
-      deadline,
-      maxScore,
-      weight,
-      type,
-      week,
-      isGroup
-    } = req.body;
-
-    const userId = req.user.id;
-    const userRole = req.user.role;
-
-    // Validate required fields
-    if (!classId || !title || !deadline || !maxScore) {
-      return res.status(400).json({
-        success: false,
-        message: 'Missing required fields'
-      });
-    }
-
-    // Check if user owns the class (for lecturers)
-    if (userRole === 'dosen') {
-      const [classes] = await pool.query(
-        'SELECT * FROM classes WHERE id = ? AND instructor_id = ?',
-        [classId, userId]
-      );
-
-      if (classes.length === 0) {
-        return res.status(403).json({
-          success: false,
-          message: 'You do not have permission to create assignments for this class'
-        });
-      }
-    }
-
-    // Insert assignment
     const [result] = await pool.query(
-      `INSERT INTO assignments 
-       (class_id, title, description, deadline, max_score, weight, type, week, is_group, status, created_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'active', NOW())`,
-      [classId, title, description, deadline, maxScore, weight || 10, type || 'assignment', week || 1, isGroup || 0]
+      `INSERT INTO assignments (title, description, class_id, lecturer_id, file, deadline)
+       VALUES (?, ?, ?, ?, ?, ?)`,
+      [title, description, class_id, lecturer_id, file, deadline]
     );
 
-    res.status(201).json({
+    res.json({
       success: true,
       message: 'Assignment created successfully',
-      data: {
-        id: result.insertId,
-        title
-      }
+      data: { id: result.insertId }
     });
-
   } catch (error) {
     console.error('Create assignment error:', error);
     res.status(500).json({
@@ -270,32 +54,52 @@ exports.createAssignment = async (req, res) => {
   }
 };
 
-// ========================================
-// UPDATE OPERATIONS
-// ========================================
+// ===================
+//  GET ALL ASSIGNMENTS (by lecturer or admin)
+// ===================
+export const getAssignments = async (req, res) => {
+  try {
+    const userRole = req.user.role;
+    const userId = req.user.id;
 
-// Update assignment
-exports.updateAssignment = async (req, res) => {
+    let query = `
+      SELECT a.*, c.name as course, c.code as courseCode
+      FROM assignments a
+      JOIN classes c ON a.class_id = c.id
+    `;
+
+    let params = [];
+
+    if (userRole === 'dosen') {
+      query += ' WHERE a.lecturer_id = ?';
+      params.push(userId);
+    }
+
+    const [assignments] = await pool.query(query, params);
+
+    res.json({
+      success: true,
+      data: assignments
+    });
+  } catch (error) {
+    console.error('Get assignments error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error fetching assignments',
+      error: error.message
+    });
+  }
+};
+
+// ===================
+//  GET ASSIGNMENT BY ID
+// ===================
+export const getAssignmentById = async (req, res) => {
   try {
     const { id } = req.params;
-    const {
-      title,
-      description,
-      deadline,
-      maxScore,
-      weight,
-      type,
-      week,
-      isGroup,
-      status
-    } = req.body;
 
-    const userId = req.user.id;
-    const userRole = req.user.role;
-
-    // Check if assignment exists and user has permission
     const [assignments] = await pool.query(
-      `SELECT a.*, c.instructor_id
+      `SELECT a.*, c.name as course, c.code as courseCode
        FROM assignments a
        JOIN classes c ON a.class_id = c.id
        WHERE a.id = ?`,
@@ -309,47 +113,49 @@ exports.updateAssignment = async (req, res) => {
       });
     }
 
-    // Check permission
-    if (userRole === 'dosen' && assignments[0].instructor_id !== userId) {
-      return res.status(403).json({
-        success: false,
-        message: 'You do not have permission to update this assignment'
-      });
+    res.json({
+      success: true,
+      data: assignments[0]
+    });
+  } catch (error) {
+    console.error('Get assignment by ID error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error fetching assignment',
+      error: error.message
+    });
+  }
+};
+
+// ===================
+//  UPDATE ASSIGNMENT
+// ===================
+export const updateAssignment = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { title, description, deadline } = req.body;
+    const file = req.file ? req.file.filename : null;
+
+    let updateQuery = `
+      UPDATE assignments 
+      SET title = ?, description = ?, deadline = ?
+    `;
+    let params = [title, description, deadline];
+
+    if (file) {
+      updateQuery += ', file = ?';
+      params.push(file);
     }
 
-    // Build update query
-    const updates = [];
-    const params = [];
-
-    if (title !== undefined) { updates.push('title = ?'); params.push(title); }
-    if (description !== undefined) { updates.push('description = ?'); params.push(description); }
-    if (deadline !== undefined) { updates.push('deadline = ?'); params.push(deadline); }
-    if (maxScore !== undefined) { updates.push('max_score = ?'); params.push(maxScore); }
-    if (weight !== undefined) { updates.push('weight = ?'); params.push(weight); }
-    if (type !== undefined) { updates.push('type = ?'); params.push(type); }
-    if (week !== undefined) { updates.push('week = ?'); params.push(week); }
-    if (isGroup !== undefined) { updates.push('is_group = ?'); params.push(isGroup); }
-    if (status !== undefined) { updates.push('status = ?'); params.push(status); }
-
-    if (updates.length === 0) {
-      return res.status(400).json({
-        success: false,
-        message: 'No fields to update'
-      });
-    }
-
+    updateQuery += ' WHERE id = ?';
     params.push(id);
 
-    await pool.query(
-      `UPDATE assignments SET ${updates.join(', ')}, updated_at = NOW() WHERE id = ?`,
-      params
-    );
+    await pool.query(updateQuery, params);
 
     res.json({
       success: true,
       message: 'Assignment updated successfully'
     });
-
   } catch (error) {
     console.error('Update assignment error:', error);
     res.status(500).json({
@@ -360,62 +166,19 @@ exports.updateAssignment = async (req, res) => {
   }
 };
 
-// ========================================
-// DELETE OPERATIONS
-// ========================================
-
-// Delete assignment (Lecturer/Admin only)
-exports.deleteAssignment = async (req, res) => {
+// ===================
+//  DELETE ASSIGNMENT
+// ===================
+export const deleteAssignment = async (req, res) => {
   try {
     const { id } = req.params;
-    const userId = req.user.id;
-    const userRole = req.user.role;
 
-    // Check if assignment exists and user has permission
-    const [assignments] = await pool.query(
-      `SELECT a.*, c.instructor_id
-       FROM assignments a
-       JOIN classes c ON a.class_id = c.id
-       WHERE a.id = ?`,
-      [id]
-    );
-
-    if (assignments.length === 0) {
-      return res.status(404).json({
-        success: false,
-        message: 'Assignment not found'
-      });
-    }
-
-    // Check permission
-    if (userRole === 'dosen' && assignments[0].instructor_id !== userId) {
-      return res.status(403).json({
-        success: false,
-        message: 'You do not have permission to delete this assignment'
-      });
-    }
-
-    // Check if there are submissions
-    const [submissions] = await pool.query(
-      'SELECT COUNT(*) as count FROM assignment_submissions WHERE assignment_id = ?',
-      [id]
-    );
-
-    if (submissions[0].count > 0) {
-      return res.status(400).json({
-        success: false,
-        message: 'Cannot delete assignment with existing submissions'
-      });
-    }
-
-    // Delete assignment
-    await pool.query('DELETE FROM assignments WHERE id = ?', [id]);
+    await pool.query(`DELETE FROM assignments WHERE id = ?`, [id]);
 
     res.json({
       success: true,
       message: 'Assignment deleted successfully'
     });
-
   } catch (error) {
     console.error('Delete assignment error:', error);
     res.status(500).json({
@@ -426,92 +189,125 @@ exports.deleteAssignment = async (req, res) => {
   }
 };
 
-// ========================================
-// SUBMISSION OPERATIONS
-// ========================================
+// ===================
+//  SUBMIT ASSIGNMENT (Student)
+// ===================
+export const submitAssignment = async (req, res) => {
+  try {
+    const { assignment_id } = req.body;
+    const file = req.file ? req.file.filename : null;
+    const user_id = req.user.id;
 
-// Submit assignment with file upload
-exports.submitAssignment = async (req, res) => {
-  upload(req, res, async (err) => {
-    if (err) {
+    const [existing] = await pool.query(
+      `SELECT * FROM assignment_submissions WHERE assignment_id = ? AND user_id = ?`,
+      [assignment_id, user_id]
+    );
+
+    if (existing.length > 0) {
       return res.status(400).json({
         success: false,
-        message: err.message
+        message: 'You have already submitted this assignment'
       });
     }
 
-    try {
-      const { assignmentId } = req.params;
-      const userId = req.user.id;
-      const file = req.file;
+    await pool.query(
+      `INSERT INTO assignment_submissions (assignment_id, user_id, file, submitted_at)
+       VALUES (?, ?, ?, NOW())`,
+      [assignment_id, user_id, file]
+    );
 
-      if (!file) {
-        return res.status(400).json({
-          success: false,
-          message: 'No file uploaded'
-        });
-      }
-
-      // Check if assignment exists and deadline hasn't passed
-      const [assignments] = await pool.query(
-        'SELECT * FROM assignments WHERE id = ?',
-        [assignmentId]
-      );
-
-      if (assignments.length === 0) {
-        return res.status(404).json({
-          success: false,
-          message: 'Assignment not found'
-        });
-      }
-
-      // Check if already submitted
-      const [existing] = await pool.query(
-        'SELECT id FROM assignment_submissions WHERE assignment_id = ? AND user_id = ?',
-        [assignmentId, userId]
-      );
-
-      if (existing.length > 0) {
-        // Update existing submission
-        await pool.query(
-          `UPDATE assignment_submissions 
-           SET file_path = ?, file_name = ?, submitted_at = NOW(), status = 'submitted'
-           WHERE assignment_id = ? AND user_id = ?`,
-          [file.path, file.originalname, assignmentId, userId]
-        );
-      } else {
-        // Create new submission
-        await pool.query(
-          `INSERT INTO assignment_submissions 
-           (assignment_id, user_id, file_path, file_name, submitted_at, status)
-           VALUES (?, ?, ?, ?, NOW(), 'submitted')`,
-          [assignmentId, userId, file.path, file.originalname]
-        );
-      }
-
-      res.json({
-        success: true,
-        message: 'Assignment submitted successfully',
-        data: {
-          fileName: file.originalname,
-          fileSize: file.size,
-          submittedAt: new Date()
-        }
-      });
-
-    } catch (error) {
-      console.error('Submit assignment error:', error);
-      res.status(500).json({
-        success: false,
-        message: 'Error submitting assignment',
-        error: error.message
-      });
-    }
-  });
+    res.json({
+      success: true,
+      message: 'Assignment submitted successfully'
+    });
+  } catch (error) {
+    console.error('Submit assignment error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error submitting assignment',
+      error: error.message
+    });
+  }
 };
 
-// Get assignment submissions (for lecturer)
-exports.getSubmissions = async (req, res) => {
+// ===================
+//  NEW: GET ASSIGNMENTS BY CLASS
+// ===================
+export const getAssignmentsByClass = async (req, res) => {
+  try {
+    const { classId } = req.params;
+    const userId = req.user.id;
+    const userRole = req.user.role;
+
+    let query = `
+      SELECT a.*, c.name as course, c.code as courseCode
+      FROM assignments a
+      JOIN classes c ON a.class_id = c.id
+      WHERE a.class_id = ?
+    `;
+    let params = [classId];
+
+    // jika dosen, hanya ambil kelas miliknya
+    if (userRole === 'dosen') {
+      query += ' AND c.instructor_id = ?';
+      params.push(userId);
+    }
+
+    const [assignments] = await pool.query(query, params);
+
+    res.json({
+      success: true,
+      data: assignments
+    });
+  } catch (error) {
+    console.error('Get assignments by class error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error fetching assignments by class',
+      error: error.message
+    });
+  }
+};
+
+// ===================
+//  NEW: GET MY SUBMISSION (Student)
+// ===================
+export const getMySubmission = async (req, res) => {
+  try {
+    const { assignmentId } = req.params;
+    const userId = req.user.id;
+
+    const [submission] = await pool.query(
+      `SELECT * FROM assignment_submissions 
+       WHERE assignment_id = ? AND user_id = ?`,
+      [assignmentId, userId]
+    );
+
+    if (submission.length === 0) {
+      return res.status(404).json({
+        success: false,
+        message: 'No submission found'
+      });
+    }
+
+    res.json({
+      success: true,
+      data: submission[0]
+    });
+  } catch (error) {
+    console.error('Get my submission error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error fetching submission',
+      error: error.message
+    });
+  }
+};
+
+// ===================
+//  GET ALL SUBMISSIONS (for lecturer/admin)
+// ===================
+export const getSubmissions = async (req, res) => {
   try {
     const { assignmentId } = req.params;
     const userId = req.user.id;
@@ -547,7 +343,6 @@ exports.getSubmissions = async (req, res) => {
       success: true,
       data: submissions
     });
-
   } catch (error) {
     console.error('Get submissions error:', error);
     res.status(500).json({
@@ -558,8 +353,10 @@ exports.getSubmissions = async (req, res) => {
   }
 };
 
-// Grade assignment submission (for lecturer)
-exports.gradeSubmission = async (req, res) => {
+// ===================
+//  GRADE SUBMISSION (for lecturer/admin)
+// ===================
+export const gradeSubmission = async (req, res) => {
   try {
     const { submissionId } = req.params;
     const { score, feedback } = req.body;
@@ -602,7 +399,6 @@ exports.gradeSubmission = async (req, res) => {
       success: true,
       message: 'Assignment graded successfully'
     });
-
   } catch (error) {
     console.error('Grade submission error:', error);
     res.status(500).json({
@@ -612,5 +408,3 @@ exports.gradeSubmission = async (req, res) => {
     });
   }
 };
-
-module.exports = exports;
