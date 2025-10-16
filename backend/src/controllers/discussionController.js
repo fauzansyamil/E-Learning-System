@@ -540,5 +540,3 @@ exports.deleteReply = async (req, res) => {
     });
   }
 };
-
-module.exports = exports;
