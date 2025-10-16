@@ -1,7 +1,7 @@
 // src/routes/gradeRoutes.js
 const express = require('express');
 const router = express.Router();
-const gradeController = require('../controllers/gradeController');
+const gradeController = require('../controllers/gradeControllers');
 const { authenticateToken, authorize } = require('../middlewares/auth');
 
 // ==================== Grade Routes ====================
