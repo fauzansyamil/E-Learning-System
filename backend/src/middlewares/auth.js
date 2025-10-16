@@ -44,7 +44,7 @@ exports.authenticateToken = async (req, res, next) => {
       const user = users[0];
 
       // Check if user is active
-      if (user.status !== 'active') {
+      if (user.is_active !== 1) {
         return res.status(403).json({
           success: false,
           message: 'User account is inactive'

@@ -127,7 +127,6 @@ exports.login = async (req, res) => {
   try {
     const { username, password } = req.body;
 
-    // Validasi input
     if (!username || !password) {
       return res.status(400).json({
         success: false,
@@ -135,7 +134,6 @@ exports.login = async (req, res) => {
       });
     }
 
-    // Cari user by username atau email
     const [users] = await pool.query(
       `SELECT u.*, r.name as role 
        FROM users u
@@ -145,59 +143,39 @@ exports.login = async (req, res) => {
     );
 
     if (users.length === 0) {
-      return res.status(401).json({
-        success: false,
-        message: 'Invalid credentials'
-      });
+      return res.status(401).json({ success: false, message: 'Invalid credentials' });
     }
 
     const user = users[0];
 
-    // Cek apakah user aktif
-    if (user.status !== 'active') {
+    if (user.is_active !== 1) {
       return res.status(403).json({
         success: false,
         message: 'Account is inactive. Please contact administrator'
       });
     }
 
-    // Verify password
-    const validPassword = await bcrypt.compare(password, user.password);
+    // ✅ Fix kolom password_hash
+    const validPassword = await bcrypt.compare(password, user.password_hash);
 
     if (!validPassword) {
-      return res.status(401).json({
-        success: false,
-        message: 'Invalid credentials'
-      });
+      return res.status(401).json({ success: false, message: 'Invalid credentials' });
     }
 
-    // Generate JWT token
     const token = jwt.sign(
-      { 
-        id: user.id, 
-        username: user.username, 
-        role: user.role 
-      },
+      { id: user.id, username: user.username, role: user.role },
       process.env.JWT_SECRET,
       { expiresIn: process.env.JWT_EXPIRES_IN || '7d' }
     );
 
-    // Remove password from response
-    delete user.password;
+    delete user.password_hash;
 
-    // Update last login
-    await pool.query(
-      'UPDATE users SET updated_at = NOW() WHERE id = ?',
-      [user.id]
-    );
+    await pool.query('UPDATE users SET updated_at = NOW() WHERE id = ?', [user.id]);
 
     res.json({
       success: true,
       message: 'Login successful',
-      data: {
-        user: user,
-        token: token
-      }
+      data: { user, token }
     });
 
   } catch (error) {
