@@ -1,6 +1,6 @@
 // frontend/src/App.jsx
 import React from 'react';
-import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route, Navigate , Link} from 'react-router-dom';
 import { AuthProvider, useAuth } from './context/AuthContext';
 
 // Pages
@@ -10,6 +10,9 @@ import Classes from './pages/Classes';
 import CourseDetail from './pages/CourseDetail';
 import Assignments from './pages/Assignments';
 import Gradebook from './pages/Gradebook';
+import Schedule from './pages/Schedule';
+import Discussions from './pages/Discussions';
+import Notifications from './pages/Notifications';
 
 // Protected Route Component
 function ProtectedRoute({ children }) {
@@ -91,12 +94,11 @@ function AppRoutes() {
         }
       />
 
-      {/* Placeholder Routes */}
       <Route
         path="/schedule"
         element={
           <ProtectedRoute>
-            <PlaceholderPage title="Jadwal" icon="📅" />
+            <Schedule />
           </ProtectedRoute>
         }
       />
@@ -105,7 +107,7 @@ function AppRoutes() {
         path="/discussions"
         element={
           <ProtectedRoute>
-            <PlaceholderPage title="Diskusi" icon="💬" />
+            <Discussions />
           </ProtectedRoute>
         }
       />
@@ -114,7 +116,7 @@ function AppRoutes() {
         path="/notifications"
         element={
           <ProtectedRoute>
-            <PlaceholderPage title="Notifikasi" icon="🔔" />
+            <Notifications />
           </ProtectedRoute>
         }
       />
@@ -154,12 +156,12 @@ function PlaceholderPage({ title, icon }) {
         <div className="text-8xl mb-6">{icon}</div>
         <h1 className="text-3xl font-bold text-gray-800 mb-4">{title}</h1>
         <p className="text-gray-600 mb-8">Halaman ini sedang dalam pengembangan</p>
-        <a
-          href="/dashboard"
+        <Link
+          to="/dashboard"
           className="inline-block px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
         >
           Kembali ke Dashboard
-        </a>
+        </Link>
       </div>
     </div>
   );
@@ -173,12 +175,12 @@ function NotFound() {
         <div className="text-8xl mb-6">🔍</div>
         <h1 className="text-6xl font-bold text-gray-800 mb-4">404</h1>
         <p className="text-xl text-gray-600 mb-8">Halaman tidak ditemukan</p>
-        <a
-          href="/dashboard"
+        <Link
+          to="/dashboard"
           className="inline-block px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
         >
           Kembali ke Dashboard
-        </a>
+        </Link>
       </div>
     </div>
   );

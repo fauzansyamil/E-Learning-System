@@ -9,7 +9,7 @@ router.use(authenticateToken);
 
 // Public routes (all authenticated users)
 router.get('/class/:classId', materialController.getMaterialsByClass);
-router.get('/:id', materialController.getMaterialById);
+router.get('/:id', materialController.getMaterialById);    
 
 // Admin & Dosen only
 router.post('/', authorize('admin', 'dosen'), materialController.createMaterial);
