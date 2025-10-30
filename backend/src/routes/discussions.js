@@ -8,9 +8,10 @@ const { authenticateToken } = require('../middlewares/auth');
 router.use(authenticateToken);
 
 // All authenticated users can create and participate in discussions
+router.get('/', discussionController.getAllDiscussions); // Get all discussions
 router.get('/class/:classId', discussionController.getDiscussionsByClass);
 router.get('/:id', discussionController.getDiscussionById);
 router.post('/', discussionController.createDiscussion);
-router.post('/:discussionId/reply', discussionController.createReply); 
+router.post('/:discussion_id/reply', discussionController.createReply); // Fixed: use discussion_id to match controller
 
 module.exports = router;

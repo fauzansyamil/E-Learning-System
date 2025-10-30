@@ -5,6 +5,7 @@ import { AuthProvider, useAuth } from './context/AuthContext';
 
 // Pages
 import Login from './pages/Login';
+import Register from './pages/Register';
 import Dashboard from './pages/Dashboard';
 import Classes from './pages/Classes';
 import CourseDetail from './pages/CourseDetail';
@@ -46,6 +47,11 @@ function AppRoutes() {
       <Route
         path="/login"
         element={isAuthenticated ? <Navigate to="/dashboard" replace /> : <Login />}
+      />
+
+      <Route
+        path="/register"
+        element={isAuthenticated ? <Navigate to="/dashboard" replace /> : <Register />}
       />
 
       {/* Protected Routes */}

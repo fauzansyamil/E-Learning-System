@@ -128,7 +128,7 @@ export default function Discussions() {
       alert('Discussion created successfully!');
     } catch (error) {
       console.error('Error creating discussion:', error);
-      alert('Failed to create discussion');
+      alert('Failed to create discussion: ' + (error.response?.data?.message || error.message));
     }
   };
 
@@ -136,7 +136,8 @@ export default function Discussions() {
     if (!replyContent.trim()) return;
 
     try {
-      await api.post(`/discussions/${discussionId}/replies`, {
+      // Fixed: Use /reply (singular) to match backend route
+      await api.post(`/discussions/${discussionId}/reply`, {
         content: replyContent
       });
       setReplyingTo(null);
@@ -145,7 +146,7 @@ export default function Discussions() {
       alert('Reply posted successfully!');
     } catch (error) {
       console.error('Error posting reply:', error);
-      alert('Failed to post reply');
+      alert('Failed to post reply: ' + (error.response?.data?.message || error.message));
     }
   };
 

@@ -170,6 +170,89 @@ exports.createReply = async (req, res) => {
 
 // ==================== READ ====================
 
+// Get All Discussions (across all user's classes)
+exports.getAllDiscussions = async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const userRole = req.user.role;
+
+    let query;
+    let params = [];
+
+    if (userRole === 'admin') {
+      // Admin can see all discussions
+      query = `
+        SELECT d.*, u.full_name as author, u.profile_picture,
+               r.name as author_role, c.name as class_name,
+               (SELECT COUNT(*) FROM discussion_replies WHERE discussion_id = d.id) as replies_count
+        FROM discussions d
+        JOIN users u ON d.created_by = u.id
+        JOIN roles r ON u.role_id = r.id
+        JOIN classes c ON d.class_id = c.id
+        ORDER BY d.updated_at DESC
+      `;
+    } else if (userRole === 'dosen') {
+      // Dosen can see discussions from their classes
+      query = `
+        SELECT d.*, u.full_name as author, u.profile_picture,
+               r.name as author_role, c.name as class_name,
+               (SELECT COUNT(*) FROM discussion_replies WHERE discussion_id = d.id) as replies_count
+        FROM discussions d
+        JOIN users u ON d.created_by = u.id
+        JOIN roles r ON u.role_id = r.id
+        JOIN classes c ON d.class_id = c.id
+        WHERE c.instructor_id = ?
+        ORDER BY d.updated_at DESC
+      `;
+      params = [userId];
+    } else {
+      // Mahasiswa can see discussions from enrolled classes
+      query = `
+        SELECT d.*, u.full_name as author, u.profile_picture,
+               r.name as author_role, c.name as class_name,
+               (SELECT COUNT(*) FROM discussion_replies WHERE discussion_id = d.id) as replies_count
+        FROM discussions d
+        JOIN users u ON d.created_by = u.id
+        JOIN roles r ON u.role_id = r.id
+        JOIN classes c ON d.class_id = c.id
+        JOIN class_enrollments ce ON c.id = ce.class_id
+        WHERE ce.student_id = ?
+        ORDER BY d.updated_at DESC
+      `;
+      params = [userId];
+    }
+
+    const [discussions] = await pool.query(query, params);
+
+    // Fetch replies for each discussion
+    for (let discussion of discussions) {
+      const [replies] = await pool.query(
+        `SELECT dr.*, u.full_name as author, u.profile_picture, r.name as author_role
+         FROM discussion_replies dr
+         JOIN users u ON dr.user_id = u.id
+         JOIN roles r ON u.role_id = r.id
+         WHERE dr.discussion_id = ?
+         ORDER BY dr.created_at ASC`,
+        [discussion.id]
+      );
+      discussion.replies = replies;
+    }
+
+    res.json({
+      success: true,
+      data: discussions
+    });
+
+  } catch (error) {
+    console.error('Get all discussions error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Server error',
+      error: error.message
+    });
+  }
+};
+
 // Get All Discussions by Class
 exports.getDiscussionsByClass = async (req, res) => {
   try {

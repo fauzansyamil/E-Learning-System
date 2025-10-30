@@ -1,6 +1,6 @@
 // frontend/src/pages/Login.jsx
 import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import api from '../services/api';
 
@@ -241,9 +241,9 @@ export default function Login() {
           <div className="mt-6 text-center">
             <p className="text-sm text-gray-600">
               Belum punya akun?{' '}
-              <button className="text-blue-600 hover:text-blue-700 font-medium">
+              <Link to="/register" className="text-blue-600 hover:text-blue-700 font-medium">
                 Daftar sekarang
-              </button>
+              </Link>
             </p>
           </div>
 
