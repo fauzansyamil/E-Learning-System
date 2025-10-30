@@ -15,6 +15,10 @@ import Schedule from './pages/Schedule';
 import Discussions from './pages/Discussions';
 import Notifications from './pages/Notifications';
 
+// Admin Pages
+import AdminDashboard from './pages/admin/AdminDashboard';
+import UserManagement from './pages/admin/UserManagement';
+
 // Protected Route Component
 function ProtectedRoute({ children }) {
   const { isAuthenticated, loading } = useAuth();
@@ -132,6 +136,43 @@ function AppRoutes() {
         element={
           <ProtectedRoute>
             <PlaceholderPage title="Profile" icon="👤" />
+          </ProtectedRoute>
+        }
+      />
+
+      {/* Admin Routes */}
+      <Route
+        path="/admin/dashboard"
+        element={
+          <ProtectedRoute>
+            <AdminDashboard />
+          </ProtectedRoute>
+        }
+      />
+
+      <Route
+        path="/admin/users"
+        element={
+          <ProtectedRoute>
+            <UserManagement />
+          </ProtectedRoute>
+        }
+      />
+
+      <Route
+        path="/admin/classes"
+        element={
+          <ProtectedRoute>
+            <PlaceholderPage title="Class Management" icon="📚" />
+          </ProtectedRoute>
+        }
+      />
+
+      <Route
+        path="/admin/reports"
+        element={
+          <ProtectedRoute>
+            <PlaceholderPage title="Reports & Analytics" icon="📊" />
           </ProtectedRoute>
         }
       />

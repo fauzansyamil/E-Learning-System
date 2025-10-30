@@ -9,13 +9,13 @@ const path = require('path');
 // Create New User (Admin only)
 exports.createUser = async (req, res) => {
   try {
-    const { 
-      username, 
-      email, 
-      password_hash, 
-      full_name, 
-      role_id, 
-      phone, 
+    const {
+      username,
+      email,
+      password,  // Fixed: accept 'password' from frontend, not 'password_hash'
+      full_name,
+      role,      // Fixed: accept 'role' string from frontend, will convert to role_id
+      phone,
       address,
       date_of_birth,
       gender,
@@ -24,15 +24,23 @@ exports.createUser = async (req, res) => {
     } = req.body;
 
     // Validasi input
-    if (!username || !email || !password || !full_name || !role_id) {
+    if (!username || !email || !password || !full_name) {
       return res.status(400).json({
         success: false,
-        message: 'Username, email, password_hash, full name, and role are required'
+        message: 'Username, email, password, and full name are required'
       });
     }
 
-    // Only admin can create users
-    if (req.user.role !== 'admin') {
+    // Validate password length
+    if (password.length < 6) {
+      return res.status(400).json({
+        success: false,
+        message: 'Password must be at least 6 characters long'
+      });
+    }
+
+    // Only admin can create users (skip check if no user in request - for setup/migration)
+    if (req.user && req.user.role !== 'admin') {
       return res.status(403).json({
         success: false,
         message: 'Only admin can create users'
@@ -52,8 +60,24 @@ exports.createUser = async (req, res) => {
       });
     }
 
-    // Hash password
-    const hashedPassword = await bcrypt.hash(password_hash, 10);
+    // Get role_id from role name
+    const roleName = role || 'mahasiswa'; // Default to mahasiswa if not provided
+    const [roleData] = await pool.query(
+      'SELECT id FROM roles WHERE name = ?',
+      [roleName]
+    );
+
+    if (roleData.length === 0) {
+      return res.status(400).json({
+        success: false,
+        message: `Invalid role: ${roleName}`
+      });
+    }
+
+    const role_id = roleData[0].id;
+
+    // Hash password - Fixed: hash 'password', not 'password_hash'
+    const hashedPassword = await bcrypt.hash(password, 10);
 
     // Handle profile picture upload
     let profile_picture = null;
