@@ -19,8 +19,31 @@ export default function Assignments() {
 
   const fetchAssignments = async () => {
     try {
-      const response = await api.get('/assignments');
-      setAssignments(response.data);
+      // Fetch assignments from all enrolled classes
+      const classesResponse = await api.get('/classes');
+      const classes = classesResponse.data.data || [];
+
+      // Fetch assignments for each class
+      let allAssignments = [];
+      for (const cls of classes) {
+        try {
+          const assignmentResponse = await api.get(`/assignments/class/${cls.id}`);
+          const assignments = assignmentResponse.data.data || [];
+
+          // Add class info to each assignment
+          const assignmentsWithClass = assignments.map(a => ({
+            ...a,
+            course: cls.name,
+            courseCode: cls.code
+          }));
+
+          allAssignments = [...allAssignments, ...assignmentsWithClass];
+        } catch (err) {
+          console.error(`Error fetching assignments for class ${cls.id}:`, err);
+        }
+      }
+
+      setAssignments(allAssignments);
     } catch (error) {
       console.error('Error fetching assignments:', error);
       // Fallback to dummy data
@@ -141,18 +164,19 @@ export default function Assignments() {
     try {
       const formData = new FormData();
       formData.append('file', uploadedFile);
-      formData.append('assignmentId', selectedAssignment.id);
 
-      await api.post('/assignments/submit', formData, {
+      // Fixed: Use correct endpoint with assignmentId in URL
+      await api.post(`/assignments/${selectedAssignment.id}/submit`, formData, {
         headers: { 'Content-Type': 'multipart/form-data' }
       });
 
       alert('Tugas berhasil dikumpulkan!');
       setUploadedFile(null);
+      setSelectedAssignment(null);
       fetchAssignments();
     } catch (error) {
       console.error('Error submitting assignment:', error);
-      alert('Gagal mengumpulkan tugas');
+      alert('Gagal mengumpulkan tugas: ' + (error.response?.data?.message || error.message));
     }
   };
 

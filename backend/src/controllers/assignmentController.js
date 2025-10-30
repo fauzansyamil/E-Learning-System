@@ -194,10 +194,34 @@ exports.deleteAssignment = async (req, res) => {
 // ===================
 exports.submitAssignment = async (req, res) => {
   try {
-    const { assignment_id } = req.body;
+    // Fixed: Get assignment_id from URL params, not body
+    const { assignmentId } = req.params;
+    const assignment_id = assignmentId;
     const file_url = req.file ? req.file.filename : null;
     const student_id = req.user.id;
 
+    // Validate file upload
+    if (!file_url) {
+      return res.status(400).json({
+        success: false,
+        message: 'File is required for submission'
+      });
+    }
+
+    // Check if assignment exists
+    const [assignments] = await pool.query(
+      'SELECT id FROM assignments WHERE id = ?',
+      [assignment_id]
+    );
+
+    if (assignments.length === 0) {
+      return res.status(404).json({
+        success: false,
+        message: 'Assignment not found'
+      });
+    }
+
+    // Check if already submitted
     const [existing] = await pool.query(
       `SELECT * FROM submissions WHERE assignment_id = ? AND student_id = ?`,
       [assignment_id, student_id]
@@ -210,7 +234,8 @@ exports.submitAssignment = async (req, res) => {
       });
     }
 
-    await pool.query(
+    // Insert submission
+    const [result] = await pool.query(
       `INSERT INTO submissions (assignment_id, student_id, file_url, submitted_at)
        VALUES (?, ?, ?, NOW())`,
       [assignment_id, student_id, file_url]
@@ -218,7 +243,14 @@ exports.submitAssignment = async (req, res) => {
 
     res.json({
       success: true,
-      message: 'Assignment submitted successfully'
+      message: 'Assignment submitted successfully',
+      data: {
+        id: result.insertId,
+        assignment_id,
+        student_id,
+        file_url,
+        submitted_at: new Date()
+      }
     });
   } catch (error) {
     console.error('Submit assignment error:', error);
