@@ -27,7 +27,7 @@ exports.authenticateToken = async (req, res, next) => {
 
       // Get user from database
       const [users] = await pool.query(
-        `SELECT u.id, u.username, u.email, u.full_name, r.name as role, u.status
+        `SELECT u.id, u.username, u.email, u.full_name, r.name as role, u.is_active
          FROM users u
          JOIN roles r ON u.role_id = r.id
          WHERE u.id = ?`,

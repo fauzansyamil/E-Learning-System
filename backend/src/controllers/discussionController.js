@@ -7,7 +7,7 @@ const { pool } = require('../config/database');
 exports.createDiscussion = async (req, res) => {
   try {
     const { class_id, title, content } = req.body;
-    const user_id = req.user.id;
+    const created_by = req.user.id;
 
     // Validasi input
     if (!class_id || !title || !content) {
@@ -21,7 +21,7 @@ exports.createDiscussion = async (req, res) => {
     if (req.user.role === 'mahasiswa') {
       const [enrollment] = await pool.query(
         'SELECT id FROM class_enrollments WHERE class_id = ? AND student_id = ?',
-        [class_id, user_id]
+        [class_id, created_by]
       );
 
       if (enrollment.length === 0) {
@@ -33,7 +33,7 @@ exports.createDiscussion = async (req, res) => {
     } else if (req.user.role === 'dosen') {
       const [classCheck] = await pool.query(
         'SELECT id FROM classes WHERE id = ? AND instructor_id = ?',
-        [class_id, user_id]
+        [class_id, created_by]
       );
 
       if (classCheck.length === 0) {
@@ -46,10 +46,10 @@ exports.createDiscussion = async (req, res) => {
 
     // Insert discussion
     const [result] = await pool.query(
-      `INSERT INTO discussions 
-       (class_id, user_id, title, content, created_at, updated_at) 
+      `INSERT INTO discussions
+       (class_id, created_by, title, content, created_at, updated_at)
        VALUES (?, ?, ?, ?, NOW(), NOW())`,
-      [class_id, user_id, title, content]
+      [class_id, created_by, title, content]
     );
 
     // Get created discussion
@@ -57,7 +57,7 @@ exports.createDiscussion = async (req, res) => {
       `SELECT d.*, u.full_name as author_name, u.profile_picture, c.name as class_name,
               (SELECT COUNT(*) FROM discussion_replies WHERE discussion_id = d.id) as reply_count
        FROM discussions d
-       JOIN users u ON d.user_id = u.id
+       JOIN users u ON d.created_by = u.id
        JOIN classes c ON d.class_id = c.id
        WHERE d.id = ?`,
       [result.insertId]
@@ -216,7 +216,7 @@ exports.getDiscussionsByClass = async (req, res) => {
                WHERE discussion_id = d.id 
                ORDER BY created_at DESC LIMIT 1) as last_reply_at
        FROM discussions d
-       JOIN users u ON d.user_id = u.id
+       JOIN users u ON d.created_by = u.id
        WHERE d.class_id = ?
        ORDER BY d.updated_at DESC`,
       [classId]
@@ -248,7 +248,7 @@ exports.getDiscussionById = async (req, res) => {
     const [discussions] = await pool.query(
       `SELECT d.*, u.full_name as author_name, u.profile_picture, c.name as class_name, c.instructor_id
        FROM discussions d
-       JOIN users u ON d.user_id = u.id
+       JOIN users u ON d.created_by = u.id
        JOIN classes c ON d.class_id = c.id
        WHERE d.id = ?`,
       [id]
@@ -354,7 +354,7 @@ exports.updateDiscussion = async (req, res) => {
     const [updatedDiscussion] = await pool.query(
       `SELECT d.*, u.full_name as author_name, u.profile_picture, c.name as class_name
        FROM discussions d
-       JOIN users u ON d.user_id = u.id
+       JOIN users u ON d.created_by = u.id
        JOIN classes c ON d.class_id = c.id
        WHERE d.id = ?`,
       [id]

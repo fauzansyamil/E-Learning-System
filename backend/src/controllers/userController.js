@@ -12,7 +12,7 @@ exports.createUser = async (req, res) => {
     const { 
       username, 
       email, 
-      password, 
+      password_hash, 
       full_name, 
       role_id, 
       phone, 
@@ -27,7 +27,7 @@ exports.createUser = async (req, res) => {
     if (!username || !email || !password || !full_name || !role_id) {
       return res.status(400).json({
         success: false,
-        message: 'Username, email, password, full name, and role are required'
+        message: 'Username, email, password_hash, full name, and role are required'
       });
     }
 
@@ -53,7 +53,7 @@ exports.createUser = async (req, res) => {
     }
 
     // Hash password
-    const hashedPassword = await bcrypt.hash(password, 10);
+    const hashedPassword = await bcrypt.hash(password_hash, 10);
 
     // Handle profile picture upload
     let profile_picture = null;
@@ -63,11 +63,11 @@ exports.createUser = async (req, res) => {
 
     // Insert user
     const [result] = await pool.query(
-      `INSERT INTO users 
-       (username, email, password, full_name, role_id, phone, address, date_of_birth, 
-        gender, student_id, employee_id, profile_picture, status, created_at, updated_at) 
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'active', NOW(), NOW())`,
-      [username, email, hashedPassword, full_name, role_id, phone, address, 
+      `INSERT INTO users
+       (username, email, password_hash, full_name, role_id, phone, address, date_of_birth,
+        gender, student_id, employee_id, profile_picture, is_active, created_at, updated_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, TRUE, NOW(), NOW())`,
+      [username, email, hashedPassword, full_name, role_id, phone, address,
        date_of_birth, gender, student_id, employee_id, profile_picture]
     );
 
@@ -75,7 +75,7 @@ exports.createUser = async (req, res) => {
     const [user] = await pool.query(
       `SELECT u.id, u.username, u.email, u.full_name, u.phone, u.address, 
               u.date_of_birth, u.gender, u.student_id, u.employee_id, 
-              u.profile_picture, u.status, r.id as role_id, r.name as role,
+              u.profile_picture, u.is_active, r.id as role_id, r.name as role,
               u.created_at, u.updated_at
        FROM users u
        JOIN roles r ON u.role_id = r.id
@@ -125,7 +125,7 @@ exports.getAllUsers = async (req, res) => {
     let query = `
       SELECT u.id, u.username, u.email, u.full_name, u.phone, u.address, 
              u.date_of_birth, u.gender, u.student_id, u.employee_id, 
-             u.profile_picture, u.status, r.id as role_id, r.name as role,
+             u.profile_picture, u.is_active, r.id as role_id, r.name as role,
              u.created_at, u.updated_at
       FROM users u
       JOIN roles r ON u.role_id = r.id
@@ -141,7 +141,7 @@ exports.getAllUsers = async (req, res) => {
 
     // Filter by status
     if (status) {
-      query += ' AND u.status = ?';
+      query += ' AND u.is_active = ?';
       params.push(status);
     }
 
@@ -173,7 +173,7 @@ exports.getAllUsers = async (req, res) => {
       countParams.push(role);
     }
     if (status) {
-      countQuery += ' AND u.status = ?';
+      countQuery += ' AND u.is_active = ?';
       countParams.push(status);
     }
     if (search) {
@@ -223,7 +223,7 @@ exports.getUserById = async (req, res) => {
     const [users] = await pool.query(
       `SELECT u.id, u.username, u.email, u.full_name, u.phone, u.address, 
               u.date_of_birth, u.gender, u.student_id, u.employee_id, 
-              u.profile_picture, u.status, r.id as role_id, r.name as role,
+              u.profile_picture, u.is_active, r.id as role_id, r.name as role,
               u.created_at, u.updated_at
        FROM users u
        JOIN roles r ON u.role_id = r.id
@@ -286,7 +286,7 @@ exports.getCurrentUser = async (req, res) => {
     const [users] = await pool.query(
       `SELECT u.id, u.username, u.email, u.full_name, u.phone, u.address, 
               u.date_of_birth, u.gender, u.student_id, u.employee_id, 
-              u.profile_picture, u.status, r.id as role_id, r.name as role,
+              u.profile_picture, u.is_active, r.id as role_id, r.name as role,
               u.created_at, u.updated_at
        FROM users u
        JOIN roles r ON u.role_id = r.id
@@ -458,7 +458,7 @@ exports.updateUser = async (req, res) => {
     const [updatedUser] = await pool.query(
       `SELECT u.id, u.username, u.email, u.full_name, u.phone, u.address, 
               u.date_of_birth, u.gender, u.student_id, u.employee_id, 
-              u.profile_picture, u.status, r.id as role_id, r.name as role,
+              u.profile_picture, u.is_active, r.id as role_id, r.name as role,
               u.created_at, u.updated_at
        FROM users u
        JOIN roles r ON u.role_id = r.id
@@ -525,8 +525,8 @@ exports.changePassword = async (req, res) => {
         });
       }
 
-      const validPassword = await bcrypt.compare(old_password, users[0].password);
-      
+      const validPassword = await bcrypt.compare(old_password, users[0].password_hash);
+
       if (!validPassword) {
         return res.status(400).json({
           success: false,
@@ -540,7 +540,7 @@ exports.changePassword = async (req, res) => {
 
     // Update password
     await pool.query(
-      'UPDATE users SET password = ?, updated_at = NOW() WHERE id = ?',
+      'UPDATE users SET password_hash = ?, updated_at = NOW() WHERE id = ?',
       [hashedPassword, id]
     );
 
@@ -673,8 +673,8 @@ exports.getUserStats = async (req, res) => {
         SUM(CASE WHEN r.name = 'admin' THEN 1 ELSE 0 END) as total_admin,
         SUM(CASE WHEN r.name = 'dosen' THEN 1 ELSE 0 END) as total_dosen,
         SUM(CASE WHEN r.name = 'mahasiswa' THEN 1 ELSE 0 END) as total_mahasiswa,
-        SUM(CASE WHEN status = 'active' THEN 1 ELSE 0 END) as total_active,
-        SUM(CASE WHEN status = 'inactive' THEN 1 ELSE 0 END) as total_inactive
+        SUM(CASE WHEN is_active = TRUE THEN 1 ELSE 0 END) as total_active,
+        SUM(CASE WHEN is_active = FALSE THEN 1 ELSE 0 END) as total_inactive
       FROM users u
       JOIN roles r ON u.role_id = r.id
     `);

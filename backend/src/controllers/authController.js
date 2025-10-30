@@ -76,16 +76,16 @@ exports.register = async (req, res) => {
 
     // Insert user baru
     const [result] = await pool.query(
-      `INSERT INTO users 
-       (username, email, password, full_name, role_id, phone, student_id, employee_id, status, created_at, updated_at) 
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'active', NOW(), NOW())`,
+      `INSERT INTO users
+       (username, email, password_hash, full_name, role_id, phone, student_id, employee_id, is_active, created_at, updated_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, TRUE, NOW(), NOW())`,
       [username, email, hashedPassword, full_name, userRoleId, phone, student_id, employee_id]
     );
 
     // Get user data (without password)
     const [newUser] = await pool.query(
       `SELECT u.id, u.username, u.email, u.full_name, u.phone, u.student_id, u.employee_id,
-              r.id as role_id, r.name as role, u.status, u.created_at
+              r.id as role_id, r.name as role, u.is_active, u.created_at
        FROM users u
        JOIN roles r ON u.role_id = r.id
        WHERE u.id = ?`,
@@ -196,7 +196,7 @@ exports.getCurrentUser = async (req, res) => {
     const [users] = await pool.query(
       `SELECT u.id, u.username, u.email, u.full_name, u.phone, u.address,
               u.date_of_birth, u.gender, u.student_id, u.employee_id,
-              u.profile_picture, u.status, r.id as role_id, r.name as role,
+              u.profile_picture, u.is_active, r.id as role_id, r.name as role,
               u.created_at, u.updated_at
        FROM users u
        JOIN roles r ON u.role_id = r.id

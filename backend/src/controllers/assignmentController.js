@@ -1,8 +1,8 @@
 // backend/src/controllers/assignmentController.js - FULL COMPLETE VERSION
-import pool from '../config/database.js';
-import path from 'path';
-import fs from 'fs';
-import multer from 'multer';
+const { pool } = require('../config/database');
+const path = require('path');
+const fs = require('fs');
+const multer = require('multer');
 
 // ========================================
 // MULTER CONFIGURATION
@@ -22,21 +22,21 @@ const storage = multer.diskStorage({
   }
 });
 
-export const upload = multer({ storage });
+exports.upload = multer({ storage });
 
 // ===================
 //  CREATE ASSIGNMENT
 // ===================
-export const createAssignment = async (req, res) => {
+exports.createAssignment = async (req, res) => {
   try {
     const { title, description, class_id, deadline } = req.body;
-    const file = req.file ? req.file.filename : null;
-    const lecturer_id = req.user.id;
+    const file_url = req.file ? req.file.filename : null;
+    const created_by = req.user.id;
 
     const [result] = await pool.query(
-      `INSERT INTO assignments (title, description, class_id, lecturer_id, file, deadline)
+      `INSERT INTO assignments (title, description, class_id, created_by, file_url, deadline)
        VALUES (?, ?, ?, ?, ?, ?)`,
-      [title, description, class_id, lecturer_id, file, deadline]
+      [title, description, class_id, created_by, file_url, deadline]
     );
 
     res.json({
@@ -57,7 +57,7 @@ export const createAssignment = async (req, res) => {
 // ===================
 //  GET ALL ASSIGNMENTS (by lecturer or admin)
 // ===================
-export const getAssignments = async (req, res) => {
+exports.getAssignments = async (req, res) => {
   try {
     const userRole = req.user.role;
     const userId = req.user.id;
@@ -71,7 +71,7 @@ export const getAssignments = async (req, res) => {
     let params = [];
 
     if (userRole === 'dosen') {
-      query += ' WHERE a.lecturer_id = ?';
+      query += ' WHERE a.created_by = ?';
       params.push(userId);
     }
 
@@ -94,7 +94,7 @@ export const getAssignments = async (req, res) => {
 // ===================
 //  GET ASSIGNMENT BY ID
 // ===================
-export const getAssignmentById = async (req, res) => {
+exports.getAssignmentById = async (req, res) => {
   try {
     const { id } = req.params;
 
@@ -130,21 +130,21 @@ export const getAssignmentById = async (req, res) => {
 // ===================
 //  UPDATE ASSIGNMENT
 // ===================
-export const updateAssignment = async (req, res) => {
+exports.updateAssignment = async (req, res) => {
   try {
     const { id } = req.params;
     const { title, description, deadline } = req.body;
-    const file = req.file ? req.file.filename : null;
+    const file_url = req.file ? req.file.filename : null;
 
     let updateQuery = `
-      UPDATE assignments 
+      UPDATE assignments
       SET title = ?, description = ?, deadline = ?
     `;
     let params = [title, description, deadline];
 
-    if (file) {
-      updateQuery += ', file = ?';
-      params.push(file);
+    if (file_url) {
+      updateQuery += ', file_url = ?';
+      params.push(file_url);
     }
 
     updateQuery += ' WHERE id = ?';
@@ -169,7 +169,7 @@ export const updateAssignment = async (req, res) => {
 // ===================
 //  DELETE ASSIGNMENT
 // ===================
-export const deleteAssignment = async (req, res) => {
+exports.deleteAssignment = async (req, res) => {
   try {
     const { id } = req.params;
 
@@ -192,15 +192,15 @@ export const deleteAssignment = async (req, res) => {
 // ===================
 //  SUBMIT ASSIGNMENT (Student)
 // ===================
-export const submitAssignment = async (req, res) => {
+exports.submitAssignment = async (req, res) => {
   try {
     const { assignment_id } = req.body;
-    const file = req.file ? req.file.filename : null;
-    const user_id = req.user.id;
+    const file_url = req.file ? req.file.filename : null;
+    const student_id = req.user.id;
 
     const [existing] = await pool.query(
-      `SELECT * FROM assignment_submissions WHERE assignment_id = ? AND user_id = ?`,
-      [assignment_id, user_id]
+      `SELECT * FROM submissions WHERE assignment_id = ? AND student_id = ?`,
+      [assignment_id, student_id]
     );
 
     if (existing.length > 0) {
@@ -211,9 +211,9 @@ export const submitAssignment = async (req, res) => {
     }
 
     await pool.query(
-      `INSERT INTO assignment_submissions (assignment_id, user_id, file, submitted_at)
+      `INSERT INTO submissions (assignment_id, student_id, file_url, submitted_at)
        VALUES (?, ?, ?, NOW())`,
-      [assignment_id, user_id, file]
+      [assignment_id, student_id, file_url]
     );
 
     res.json({
@@ -233,7 +233,7 @@ export const submitAssignment = async (req, res) => {
 // ===================
 //  NEW: GET ASSIGNMENTS BY CLASS
 // ===================
-export const getAssignmentsByClass = async (req, res) => {
+exports.getAssignmentsByClass = async (req, res) => {
   try {
     const { classId } = req.params;
     const userId = req.user.id;
@@ -272,14 +272,14 @@ export const getAssignmentsByClass = async (req, res) => {
 // ===================
 //  NEW: GET MY SUBMISSION (Student)
 // ===================
-export const getMySubmission = async (req, res) => {
+exports.getMySubmission = async (req, res) => {
   try {
     const { assignmentId } = req.params;
     const userId = req.user.id;
 
     const [submission] = await pool.query(
-      `SELECT * FROM assignment_submissions 
-       WHERE assignment_id = ? AND user_id = ?`,
+      `SELECT * FROM submissions
+       WHERE assignment_id = ? AND student_id = ?`,
       [assignmentId, userId]
     );
 
@@ -307,7 +307,7 @@ export const getMySubmission = async (req, res) => {
 // ===================
 //  GET ALL SUBMISSIONS (for lecturer/admin)
 // ===================
-export const getSubmissions = async (req, res) => {
+exports.getSubmissions = async (req, res) => {
   try {
     const { assignmentId } = req.params;
     const userId = req.user.id;
@@ -332,8 +332,8 @@ export const getSubmissions = async (req, res) => {
 
     const [submissions] = await pool.query(
       `SELECT asub.*, u.full_name as student_name, u.username
-       FROM assignment_submissions asub
-       JOIN users u ON asub.user_id = u.id
+       FROM submissions asub
+       JOIN users u ON asub.student_id = u.id
        WHERE asub.assignment_id = ?
        ORDER BY asub.submitted_at DESC`,
       [assignmentId]
@@ -356,7 +356,7 @@ export const getSubmissions = async (req, res) => {
 // ===================
 //  GRADE SUBMISSION (for lecturer/admin)
 // ===================
-export const gradeSubmission = async (req, res) => {
+exports.gradeSubmission = async (req, res) => {
   try {
     const { submissionId } = req.params;
     const { score, feedback } = req.body;
@@ -365,7 +365,7 @@ export const gradeSubmission = async (req, res) => {
     // Verify lecturer owns this assignment
     const [submission] = await pool.query(
       `SELECT asub.*, a.class_id, a.max_score
-       FROM assignment_submissions asub
+       FROM submissions asub
        JOIN assignments a ON asub.assignment_id = a.id
        JOIN classes c ON a.class_id = c.id
        WHERE asub.id = ? AND c.instructor_id = ?`,
@@ -389,7 +389,7 @@ export const gradeSubmission = async (req, res) => {
 
     // Update grade
     await pool.query(
-      `UPDATE assignment_submissions 
+      `UPDATE submissions 
        SET score = ?, feedback = ?, graded_at = NOW(), status = 'graded'
        WHERE id = ?`,
       [score, feedback, submissionId]
