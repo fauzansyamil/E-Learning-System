@@ -42,6 +42,12 @@ const notificationRoutes = require('./routes/notifications');
 const dashboardRoutes = require('./routes/dashboard');
 const gradeRoutes = require('./routes/grades');
 
+// New routes for LMS features
+const moduleRoutes = require('./routes/modules');
+const scheduleRoutes = require('./routes/schedules');
+const announcementRoutes = require('./routes/announcements');
+const gradeNewRoutes = require('./routes/gradesNew');
+
 // ==================== API Routes ====================
 app.use('/api/auth', authRoutes);
 app.use('/api/users', userRoutes);
@@ -52,6 +58,12 @@ app.use('/api/discussions', discussionRoutes);
 app.use('/api/notifications', notificationRoutes);
 app.use('/api/dashboard', dashboardRoutes);
 app.use('/api/grades', gradeRoutes);
+
+// New LMS feature routes
+app.use('/api/modules', moduleRoutes);
+app.use('/api/schedules', scheduleRoutes);
+app.use('/api/announcements', announcementRoutes);
+app.use('/api/grades-new', gradeNewRoutes); // Enhanced grades with components
 
 // ==================== Root Route ====================
 app.get('/', (req, res) => {
