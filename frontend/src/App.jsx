@@ -15,6 +15,12 @@ import Schedule from './pages/Schedule';
 import Discussions from './pages/Discussions';
 import Notifications from './pages/Notifications';
 
+// New Enhanced Pages
+import Modules from './pages/Modules';
+import ScheduleEnhanced from './pages/ScheduleEnhanced';
+import AnnouncementsPage from './pages/AnnouncementsPage';
+import GradebookEnhanced from './pages/GradebookEnhanced';
+
 // Admin Pages
 import AdminDashboard from './pages/admin/AdminDashboard';
 import UserManagement from './pages/admin/UserManagement';
@@ -127,6 +133,43 @@ function AppRoutes() {
         element={
           <ProtectedRoute>
             <Notifications />
+          </ProtectedRoute>
+        }
+      />
+
+      {/* New Enhanced Pages Routes */}
+      <Route
+        path="/modules/:classId"
+        element={
+          <ProtectedRoute>
+            <Modules />
+          </ProtectedRoute>
+        }
+      />
+
+      <Route
+        path="/schedule-enhanced"
+        element={
+          <ProtectedRoute>
+            <ScheduleEnhanced />
+          </ProtectedRoute>
+        }
+      />
+
+      <Route
+        path="/announcements"
+        element={
+          <ProtectedRoute>
+            <AnnouncementsPage />
+          </ProtectedRoute>
+        }
+      />
+
+      <Route
+        path="/gradebook-enhanced/:classId"
+        element={
+          <ProtectedRoute>
+            <GradebookEnhanced />
           </ProtectedRoute>
         }
       />
