@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useContext } from 'react';
 import { useParams } from 'react-router-dom';
 import api from '../services/api';
-import Navbar from '../components/Navbar';
+import Navbar from '../components/common/Navbar';
 import { AuthContext } from '../context/AuthContext';
 import {
   Award,

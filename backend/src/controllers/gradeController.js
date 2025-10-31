@@ -505,7 +505,7 @@ exports.getFinalGradesByClass = async (req, res) => {
 
     // Get all enrolled students with their final grades
     const [grades] = await pool.query(
-      `SELECT u.id, u.username, u.full_name, u.student_id,
+      `SELECT u.id, u.username, u.full_name as student_name, u.student_id,
               fg.numeric_grade, fg.letter_grade, fg.grade_points, fg.is_published, fg.calculated_at
        FROM class_enrollments ce
        JOIN users u ON ce.student_id = u.id
