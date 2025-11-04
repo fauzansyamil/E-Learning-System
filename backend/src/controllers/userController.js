@@ -445,15 +445,17 @@ exports.updateUser = async (req, res) => {
       updateValues.push(employee_id);
     }
 
-    // Only admin can change role and status
+    // Only admin can change role and is_active status
     if (requesterRole === 'admin') {
       if (role_id !== undefined) {
         updateFields.push('role_id = ?');
         updateValues.push(role_id);
       }
       if (status !== undefined) {
-        updateFields.push('status = ?');
-        updateValues.push(status);
+        // Map status to is_active boolean
+        const isActive = status === 'active' || status === true || status === 1;
+        updateFields.push('is_active = ?');
+        updateValues.push(isActive);
       }
     }
 
@@ -608,10 +610,10 @@ exports.deleteUser = async (req, res) => {
       });
     }
 
-    // Soft delete - set status to inactive
+    // Soft delete - set is_active to FALSE
     await pool.query(
-      'UPDATE users SET status = ?, updated_at = NOW() WHERE id = ?',
-      ['inactive', id]
+      'UPDATE users SET is_active = FALSE, updated_at = NOW() WHERE id = ?',
+      [id]
     );
 
     res.json({
