@@ -18,7 +18,9 @@ exports.createDiscussion = async (req, res) => {
     }
 
     // Cek apakah user memiliki akses ke kelas ini
-    if (req.user.role === 'mahasiswa') {
+    if (req.user.role === 'admin') {
+      // Admin has full access to all classes - skip validation
+    } else if (req.user.role === 'mahasiswa') {
       const [enrollment] = await pool.query(
         'SELECT id FROM class_enrollments WHERE class_id = ? AND student_id = ?',
         [class_id, created_by]
@@ -110,7 +112,9 @@ exports.createReply = async (req, res) => {
     const discussion = discussions[0];
 
     // Cek akses user ke kelas ini
-    if (req.user.role === 'mahasiswa') {
+    if (req.user.role === 'admin') {
+      // Admin has full access to all discussions - skip validation
+    } else if (req.user.role === 'mahasiswa') {
       const [enrollment] = await pool.query(
         'SELECT id FROM class_enrollments WHERE class_id = ? AND student_id = ?',
         [discussion.class_id, user_id]
@@ -261,7 +265,9 @@ exports.getDiscussionsByClass = async (req, res) => {
     const userRole = req.user.role;
 
     // Cek akses user
-    if (userRole === 'mahasiswa') {
+    if (userRole === 'admin') {
+      // Admin has full access to all classes - skip validation
+    } else if (userRole === 'mahasiswa') {
       const [enrollment] = await pool.query(
         'SELECT id FROM class_enrollments WHERE class_id = ? AND student_id = ?',
         [classId, userId]
